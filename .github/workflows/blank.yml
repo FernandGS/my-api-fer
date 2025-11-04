@@ -17,7 +17,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/${{ github.repository }}/my-api-fer
+  IMAGE_NAME: ghcr.io/fernandgs/my-api-fer
 
 jobs:
   build:
