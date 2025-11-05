@@ -5,6 +5,9 @@ import time
 
 app = Flask(__name__)
 
+# -----------------------
+# Database connection util
+# -----------------------
 def get_db_connection():
     db_host = os.environ.get('DB_HOST')
     db_name = os.environ.get('DB_NAME')
@@ -44,5 +47,86 @@ def db_health_check():
         "message": "Database connection successful"
     })
 
+# -----------------------
+# In-memory news API
+# -----------------------
+news = [
+    {"id": 1, "title": "Initial News", "content": "This is the first article."}
+]
+
+# simple auto-increment for IDs
+next_id = 2
+
+def find_news_item(item_id: int):
+    for item in news:
+        if item["id"] == item_id:
+            return item
+    return None
+
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({
+        "message": "Welcome to the News API!",
+        "endpoints": {
+            "list_all_news": "GET /news",
+            "create_news": "POST /news",
+            "update_news": "PUT /news/<id>",
+            "delete_news": "DELETE /news/<id>",
+            "db_health": "GET /db-health"
+        }
+    })
+
+@app.route("/news", methods=["GET"])
+def list_news():
+    return jsonify({"count": len(news), "items": news})
+
+@app.route("/news", methods=["POST"])
+def create_news():
+    global next_id
+    if not request.is_json:
+        abort(400, description="Request must be JSON")
+
+    payload = request.get_json()
+    if "title" not in payload:
+        abort(400, description="Field 'title' is required")
+
+    new_item = {
+        "id": next_id,
+        "title": payload["title"],
+        "content": payload.get("content", "")
+    }
+    news.append(new_item)
+    next_id += 1
+    return jsonify(new_item), 201
+
+@app.route("/news/<int:item_id>", methods=["PUT"])
+def update_news(item_id: int):
+    item = find_news_item(item_id)
+    if not item:
+        abort(404, description="News item not found")
+    if not request.is_json:
+        abort(400, description="Request must be JSON")
+
+    payload = request.get_json()
+    if "title" in payload:
+        item["title"] = payload["title"]
+    if "content" in payload:
+        item["content"] = payload["content"]
+
+    return jsonify(item)
+
+@app.route("/news/<int:item_id>", methods=["DELETE"])
+def delete_news(item_id: int):
+    item = find_news_item(item_id)
+    if not item:
+        abort(404, description="News item not found")
+
+    news.remove(item)
+    return jsonify({"status": "deleted", "id": item_id})
+
+# -----------------------
+# Run server
+# -----------------------
 if __name__ == "__main__":
+    # Use host and port that match your docker/run configuration
     app.run(threaded=True, host='0.0.0.0', port=3000)
